@@ -1,0 +1,439 @@
+ //---------------------------------------dinh nghia cac chan cho cam bien----------------------------------------------------------
+// dinh nghia chan do line
+#define line_trai A0
+#define line_phai A1
+#define line_truoc A5
+// dinh nghia chan encoder
+#define encoder_trai 2
+#define encoder_phai 3
+// dinh nghia chan L298 
+#define ENA 11 
+#define ENB 10
+#define IN1  7 
+#define IN2 6
+#define IN3 5
+#define IN4 4
+// dinh nghia chan cam bien khoang cach
+#define trig_trai 13
+#define echo_trai 12
+#define trig_phai A2
+#define echo_phai A3
+#define trig_truoc 9
+#define echo_truoc 8
+//------------------------------------------dinh nghia ham-----------------------------------------------------------------------
+void tien(int a, int b);
+void lui(int a, int b);
+void trai(int a, int b);
+void phai(int a, int b);
+void dung();
+void motor_phai();
+void motor_trai();
+void xu_ly();
+void encoder();
+//------------------------------------------khai bao bien---------------------------------------------------------------------------------
+unsigned long duration_truoc;   // kieu so nguyen co gia tri lon nhat
+float distance_truoc;
+unsigned long duration_phai; 
+float distance_phai;
+unsigned long duration_trai; 
+float distance_trai;
+float kc_trai;
+float kc_phai;
+float kc_truoc;
+
+int gia_tri_line_trai ;
+int gia_tri_line_phai ;
+int gia_tri_line_truoc ;
+
+unsigned long thoi_gian;
+unsigned long hien_tai = 0;
+
+int dem_1 = 0; 
+int dem_2 = 0;
+
+//--------------------------------------------------------------------------------------------
+void setup()
+{
+  pinMode(line_trai , INPUT);
+  pinMode(line_phai , INPUT);
+  pinMode(line_truoc , INPUT);
+  
+  pinMode(encoder_trai , INPUT);
+  pinMode(encoder_phai , INPUT);
+
+  pinMode(ENA , OUTPUT);
+  pinMode(ENB , OUTPUT);
+  pinMode(IN1 , OUTPUT);
+  pinMode(IN2 , OUTPUT);
+  pinMode(IN3 , OUTPUT);
+  pinMode(IN4 , OUTPUT);
+
+  pinMode(trig_trai,OUTPUT);
+  pinMode(echo_trai,INPUT);
+  pinMode(trig_phai,OUTPUT);
+  pinMode(echo_phai,INPUT);
+  pinMode(trig_truoc,OUTPUT);
+  pinMode(echo_truoc,INPUT);
+
+  // ham ngat dem xung 
+  attachInterrupt(0, motor_trai, RISING);
+  attachInterrupt(1, motor_phai, RISING);
+  // mo bang serial de xem gia tri
+  Serial.begin(9600);
+}
+//-------------------------------------------------------------------------------------------------------------------------------
+void loop() 
+{
+
+          encoder();
+          gia_tri_line_trai = digitalRead(line_trai);
+          gia_tri_line_truoc = digitalRead(line_truoc);
+          gia_tri_line_phai = digitalRead(line_phai);
+          kc_truoc = khoang_cach_truoc();
+  if(gia_tri_line_truoc == 1 && gia_tri_line_trai == 0 && gia_tri_line_phai == 0)
+  {
+    if(kc_truoc < 15 &&kc_truoc != 0.0 )
+    {
+      dung();
+      delay(500);
+      xu_ly();
+    }
+    else
+      tien(55,55);  //60,60
+  }
+  if(gia_tri_line_truoc == 1 && gia_tri_line_trai == 1 && gia_tri_line_phai == 0)
+  {
+      trai(57,57);   //55   
+      delay(100);
+      dung();
+      delay(100);
+  }
+  if(gia_tri_line_truoc == 0 && gia_tri_line_trai == 1 && gia_tri_line_phai == 0)
+    {
+      trai(0,57);//50
+      delay(200);
+      dung();
+      delay(100);
+    }
+    
+  if(gia_tri_line_truoc == 1 && gia_tri_line_trai == 0 && gia_tri_line_phai == 1)
+  {
+
+      phai(57,57);//50,50
+      delay(100);
+      dung();
+      delay(100);
+  
+  }
+  if(gia_tri_line_truoc == 0 && gia_tri_line_trai == 0 && gia_tri_line_phai == 1)
+    {
+      phai(57,0);//50
+       delay(200);
+      dung();
+      delay(100);
+    }
+ if(gia_tri_line_truoc == 1 && gia_tri_line_trai == 1 && gia_tri_line_phai == 1)
+ {
+           while(gia_tri_line_truoc == 1 && gia_tri_line_truoc == 1 && gia_tri_line_truoc == 1 )
+           {
+              phai(57,0);
+              gia_tri_line_truoc = digitalRead(line_truoc);
+              gia_tri_line_phai = digitalRead(line_phai);
+              gia_tri_line_trai = digitalRead(line_trai);
+           }
+ }
+   if(gia_tri_line_truoc == 0 && gia_tri_line_trai == 0 && gia_tri_line_phai == 0)
+  {
+    lui(60,60);
+    delay(200);
+    dung();
+    delay(100);
+  }
+
+}
+  
+//----------------------------------------------------- ham di chuyen-------------------------------------------------------------
+
+void tien(int a, int b)
+{
+   analogWrite(ENA,a);
+   analogWrite(ENB,b);
+   digitalWrite(IN1,LOW);
+   digitalWrite(IN2,HIGH);
+   digitalWrite(IN3,LOW);
+   digitalWrite(IN4,HIGH);
+}
+
+void lui(int a, int b)
+{
+   analogWrite(ENA,a);
+   analogWrite(ENB,b);
+   digitalWrite(IN1,HIGH);
+   digitalWrite(IN3,HIGH);
+   digitalWrite(IN2,LOW);
+   digitalWrite(IN4,LOW);
+}
+void phai(int a, int b)
+{
+  analogWrite(ENA,a);
+  digitalWrite(IN2,HIGH);
+  digitalWrite(IN1,LOW);
+  analogWrite(ENB,b);
+  digitalWrite(IN4,LOW);
+  digitalWrite(IN3,HIGH);
+}
+void trai(int a, int b)
+{
+   analogWrite(ENA,a);
+   digitalWrite(IN2,LOW);
+   digitalWrite(IN1,HIGH);
+   analogWrite(ENB,b);
+   digitalWrite(IN4,HIGH);
+   digitalWrite(IN3,LOW);
+}
+
+void dung()
+{
+   analogWrite(ENA,0);
+   analogWrite(ENB,0);
+   digitalWrite(IN2,LOW);
+   digitalWrite(IN1,LOW);
+   digitalWrite(IN4,LOW);
+   digitalWrite(IN3,LOW);
+}
+//--------------------------------------- ham tinh khoang cach--------------------------------------------------------------------------
+float khoang_cach_truoc()
+{
+    digitalWrite(trig_truoc,0);
+    delayMicroseconds(2);
+    digitalWrite(trig_truoc,1); 
+    delayMicroseconds(10);
+    digitalWrite(trig_truoc,0);
+     // ham pulseIn leen high se dem thoi gian va ve lai low bo dem thoi gian dung lai 
+    duration_truoc = pulseIn(echo_truoc,HIGH); // micro giay
+    distance_truoc = float(duration_truoc/2.0/29.412);// 29.412 do lay van toc am thanh 340 micro / s
+    Serial.print("kc truoc =");
+    Serial.println(distance_truoc);
+    return distance_truoc;   
+}
+
+float khoang_cach_phai()
+{
+    digitalWrite(trig_phai,0);
+    delayMicroseconds(2);
+    digitalWrite(trig_phai,1); 
+    delayMicroseconds(10);
+    digitalWrite(trig_phai,0);
+     // ham pulseIn leen high se dem thoi gian va ve lai low bo dem thoi gian dung lai 
+    duration_phai = pulseIn(echo_phai,HIGH);
+    distance_phai = float(duration_phai/2.0/29.412);
+    Serial.print("kc phai =");
+    Serial.println(distance_phai);
+    return distance_phai;
+}
+
+float khoang_cach_trai()
+{
+    digitalWrite(trig_trai,0);
+    delayMicroseconds(2);
+    digitalWrite(trig_trai,1); 
+    delayMicroseconds(10);
+    digitalWrite(trig_trai,0);
+     // ham pulseIn len high se dem thoi gian va ve lai low bo dem thoi gian dung lai 
+    duration_trai = pulseIn(echo_trai,HIGH);
+    distance_trai = float(duration_trai/2.0/29.412);
+     Serial.print("kc trai =");
+    Serial.println(distance_trai);
+    return distance_trai;
+}
+//---------------------------------------------ham tinh toc do dong co----------------------------------------------------------
+void motor_trai()
+{
+  dem_1 = dem_1 + 1;// dem_1 = so xung / s
+}
+void motor_phai()
+{
+  dem_2 = dem_2 + 1;
+}
+//------------------------------------------- xu ly vat can---------------------------------------------
+void xu_ly()
+{
+    int dem = 0;
+    kc_trai = khoang_cach_trai();
+    kc_phai = khoang_cach_phai();
+    gia_tri_line_phai = digitalRead(line_phai);
+    gia_tri_line_trai = digitalRead(line_trai);
+    if(kc_trai > 20 && kc_phai > 20)
+    {
+          kc_truoc = khoang_cach_truoc();
+          while(kc_truoc < 20)
+          {
+                  trai(0,60);//50
+                  delay(200);
+                  dung();
+                  delay(100);
+                  kc_truoc = khoang_cach_truoc();
+                  dem = dem + 1;
+          }
+           dung();
+           delay(500);
+           tien(60,60);
+           delay(700);
+           dung();
+           delay(500);
+           dem = dem + 2; // + 2
+           while ( dem > 0)
+           {
+                  phai(60,0);//50
+                  delay(200);
+                  dung();
+                  delay(100);
+                  dem = dem - 1 ;
+           }
+           gia_tri_line_truoc = digitalRead(line_truoc);
+           gia_tri_line_phai = digitalRead(line_phai);
+           gia_tri_line_trai = digitalRead(line_trai);
+           while(gia_tri_line_truoc == 0 && gia_tri_line_truoc == 0 && gia_tri_line_truoc == 0 )
+           {
+              tien(55,55);
+              gia_tri_line_truoc = digitalRead(line_truoc);
+              gia_tri_line_phai = digitalRead(line_phai);
+              gia_tri_line_trai = digitalRead(line_trai);
+           }
+           dung();
+           delay(500);
+           trai(0,65);
+           delay(500);    
+    }
+    if(kc_trai > 20 && kc_phai < 20)
+    {
+          kc_truoc = khoang_cach_truoc();
+          while(kc_truoc < 20)
+          {
+                   trai(0,60);//50
+                  delay(200);
+                  dung();
+                  delay(100);
+                  kc_truoc = khoang_cach_truoc();
+                  dem = dem + 1;
+          }
+            dung();
+           delay(500);
+           tien(60,60);
+           delay(700);
+           dung();
+           delay(500);
+           dem = dem + 2;
+           while ( dem > 0)
+           {
+                  phai(60,0);//50
+                  delay(200);
+                  dung();
+                  delay(100);
+                  dem = dem - 1 ;
+           }
+           gia_tri_line_truoc = digitalRead(line_truoc);
+           gia_tri_line_phai = digitalRead(line_phai);
+           gia_tri_line_trai = digitalRead(line_trai);
+           while(gia_tri_line_truoc == 0 && gia_tri_line_truoc == 0 && gia_tri_line_truoc == 0 )
+           {
+              tien(60,60);
+              gia_tri_line_truoc = digitalRead(line_truoc);
+              gia_tri_line_phai = digitalRead(line_phai);
+              gia_tri_line_trai = digitalRead(line_trai);
+           }
+            dung();
+           delay(500);
+           trai(0,60);
+           delay(500);    
+    }
+     if(kc_trai < 20 && kc_phai > 20)
+    {
+          kc_truoc = khoang_cach_truoc();
+          while(kc_truoc < 20)
+          {
+                  phai(60,0);//50
+                  delay(200);
+                  dung();
+                  delay(100);
+                  kc_truoc = khoang_cach_truoc();
+                  dem = dem + 1;
+          }
+            dung();
+           delay(500);
+           tien(60,60);
+           delay(700);
+           dung();
+           delay(500);
+           dem = dem + 2;
+           while ( dem > 0)
+           {
+                  trai(0,60);//50
+                  delay(200);
+                  dung();
+                  delay(100);
+                  dem = dem - 1 ;
+           }
+           gia_tri_line_truoc = digitalRead(line_truoc);
+           gia_tri_line_phai = digitalRead(line_phai);
+           gia_tri_line_trai = digitalRead(line_trai);
+           while(gia_tri_line_truoc == 0 && gia_tri_line_truoc == 0 && gia_tri_line_truoc == 0 )
+           {
+              tien(60,60);
+              gia_tri_line_truoc = digitalRead(line_truoc);
+              gia_tri_line_phai = digitalRead(line_phai);
+             gia_tri_line_trai = digitalRead(line_trai);
+           }
+            dung();
+           delay(500);
+           phai(0,60);
+           delay(500);    
+    }
+    if(kc_trai < 20 && kc_phai < 20)
+    {
+      while(kc_trai < 20 && kc_phai < 20)
+      {
+        lui(55,55);
+        kc_trai = khoang_cach_trai();
+        kc_phai = khoang_cach_phai();
+      }
+      dung();
+      delay(500);
+      phai(55,0);
+      delay(500);
+      dung();
+      delay(500);
+      gia_tri_line_truoc = digitalRead(line_truoc);
+      gia_tri_line_phai = digitalRead(line_phai);
+      gia_tri_line_trai = digitalRead(line_trai);
+      while(gia_tri_line_truoc == 0 && gia_tri_line_trai == 0 && gia_tri_line_phai == 0)
+      {
+        phai(55,0);
+        gia_tri_line_truoc = digitalRead(line_truoc);
+        gia_tri_line_phai = digitalRead(line_phai);
+        gia_tri_line_trai = digitalRead(line_trai);
+      }
+    }
+}
+//--------------------- ham xuat gia tri encoder---------------------------------------------------------------------
+void encoder()
+{
+    #define pi 3.14
+    #define d  0.065 // met
+    // encoder luôn hoạt động nhưng cứ 1s thì mình mới lấy giá trị ra -> dùng millis(timer)
+    // delay dung toan chuong trinh còn millis dung nhung vân thực hiện dc nhiem vu khac
+    thoi_gian=millis();
+    Serial.print("thoi_gian = "); Serial.println(thoi_gian);
+    if(thoi_gian - hien_tai >= 1000) // delay (1000);
+    {
+    hien_tai = millis();
+    Serial.print("                         xung/s_mottor_trai = "); Serial.println(dem_1);
+    Serial.print("                         vong/s_mottor_trai = "); Serial.println(float(dem_1 / 20.0));
+    Serial.print("                         m/s_mottor_trai = "); Serial.println(float((dem_1 / 20.0)) * (pi * d));
+    Serial.print("                         xung/s_mottor_phai = "); Serial.println(dem_2);
+    Serial.print("                         vong/s_mottor_phai = "); Serial.println(float(dem_2 / 20.0));
+    Serial.print("                         m/s_mottor_phai = "); Serial.println(float((dem_2 / 20.0)) * (pi * d)); 
+    dem_2 = 0;
+    dem_1 = 0;
+    }
+}
